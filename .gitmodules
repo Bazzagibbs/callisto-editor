@@ -1,0 +1,3 @@
+[submodule "callisto"]
+	path = callisto
+	url = git@github.com:Bazzagibbs/callisto.git
