@@ -1,0 +1,8 @@
+/.vs/
+/.idea/
+*.sublime-*
+/out/
+
+ols.json
+callisto-editor.exe
+callisto-editor.pdb

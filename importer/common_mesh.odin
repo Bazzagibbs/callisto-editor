@@ -1,8 +1,8 @@
 package callisto_importer
 
 import "core:log"
-import "../common"
-import "../asset"
+import "../callisto/common"
+import "../callisto/asset"
 
 // Replace a mesh primitive's normal data with calculated flat normals.
 vertex_group_calculate_flat_normals :: proc(vert_group: ^asset.Vertex_Group) -> (ok: bool) {

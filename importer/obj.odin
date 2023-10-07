@@ -7,7 +7,9 @@ import "core:bytes"
 import "core:strconv"
 import "core:unicode"
 import "core:log"
-import "../asset"
+import "../callisto/asset"
+
+// NOTE: Wavefront .obj importing is not implemented
 
 Obj_Token_Kind :: enum {
     comment,            // # -> eol

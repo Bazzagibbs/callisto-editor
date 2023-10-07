@@ -11,15 +11,14 @@ import "core:mem"
 import "core:runtime"
 
 import "vendor:cgltf"
-// import "gltf"
-import cc "../common"
-import "../asset"
+import cc "../callisto/common"
+import "../callisto/asset"
 
 import_gltf :: proc(model_path: string) -> (
-    meshes: []asset.Mesh,
-    materials: []asset.Material, 
-    textures: []asset.Texture, 
-    models: []asset.Model, 
+    meshes:     []asset.Mesh,
+    materials:  []asset.Material, 
+    textures:   []asset.Texture, 
+    models:     []asset.Model, 
     constructs: []asset.Construct,
     ok: bool) {
         model_path_cstr := strings.clone_to_cstring(model_path)
@@ -54,7 +53,7 @@ import_gltf :: proc(model_path: string) -> (
                 index_count:                int,
                 vertex_count:               int,
                 element_size:               int,
-                n_uv_channels:              u64,
+                n_texcoord_channels:        u64,
                 n_color_channels:           u64,
                 n_joint_weight_channels:    u64,
             }
@@ -84,7 +83,7 @@ import_gltf :: proc(model_path: string) -> (
                         has_tangents = true
 
                     case .texcoord:  // Multi-channel attribute
-                        prim_info.n_uv_channels = math.max(prim_info.n_uv_channels, u64(attribute.index) + 1)
+                        prim_info.n_texcoord_channels = math.max(prim_info.n_texcoord_channels, u64(attribute.index) + 1)
                         prim_info.element_size += size_of([2]f32)
 
                     case .color:
@@ -129,11 +128,11 @@ import_gltf :: proc(model_path: string) -> (
                 vert_group := &mesh.vertex_groups[vert_group_idx]
                 prim_info := &primitive_temp_infos[vert_group_idx]
 
-                if prim_info.n_uv_channels > 0 {
-                    vert_group.uv = make([][][2]f32, prim_info.n_uv_channels)
+                if prim_info.n_texcoord_channels > 0 {
+                    vert_group.texcoords = make([][][2]f32, prim_info.n_texcoord_channels)
                 }
                 if prim_info.n_color_channels > 0 {
-                    vert_group.color = make([][][4]u8, prim_info.n_color_channels)
+                    vert_group.colors = make([][][4]u8, prim_info.n_color_channels)
                 }
                 if prim_info.n_joint_weight_channels > 0 {
                     vert_group.joints = make([][][4]u16, prim_info.n_joint_weight_channels)
@@ -147,11 +146,11 @@ import_gltf :: proc(model_path: string) -> (
                 vert_group.normal, slice_begin   = make_subslice_of_type([3]f32, mesh.buffer, slice_begin, prim_info.vertex_count)
                 vert_group.tangent, slice_begin  = make_subslice_of_type([4]f32, mesh.buffer, slice_begin, prim_info.vertex_count)
 
-                for idx in 0..<len(vert_group.uv) {
-                    vert_group.uv[idx], slice_begin = make_subslice_of_type([2]f32, mesh.buffer, slice_begin, prim_info.vertex_count)
+                for idx in 0..<len(vert_group.texcoords) {
+                    vert_group.texcoords[idx], slice_begin = make_subslice_of_type([2]f32, mesh.buffer, slice_begin, prim_info.vertex_count)
                 }
-                for idx in 0..<len(vert_group.color) {
-                    vert_group.color[idx], slice_begin = make_subslice_of_type([4]u8, mesh.buffer, slice_begin, prim_info.vertex_count)
+                for idx in 0..<len(vert_group.colors) {
+                    vert_group.colors[idx], slice_begin = make_subslice_of_type([4]u8, mesh.buffer, slice_begin, prim_info.vertex_count)
                 }
                 for idx in 0..<len(vert_group.joints) {
                     vert_group.joints[idx], slice_begin = make_subslice_of_type([4]u16, mesh.buffer, slice_begin, prim_info.vertex_count)
@@ -188,11 +187,11 @@ import_gltf :: proc(model_path: string) -> (
                             log.error("Importer [glTF]: Error unpacking vertex tangents")
                         }
                     case .texcoord: 
-                        ok = gltf_unpack_attribute([2]f32, attribute.data, vert_group.uv[attribute.index]); if !ok {
+                        ok = gltf_unpack_attribute([2]f32, attribute.data, vert_group.texcoords[attribute.index]); if !ok {
                             log.error("Importer [glTF]: Error unpacking vertex UVs")
                         }
                     case .color: 
-                        ok = gltf_unpack_attribute([4]u8, attribute.data, vert_group.color[attribute.index]); if !ok {
+                        ok = gltf_unpack_attribute([4]u8, attribute.data, vert_group.colors[attribute.index]); if !ok {
                             log.error("Importer [glTF]: Error unpacking vertex colors")
                         }
                     case .joints: 
