@@ -1,5 +1,7 @@
 package callisto_importer
 
+// NOTE: OBJ importer is a work-in-progress.
+
 import "core:os"
 import "core:strings"
 import "core:text/scanner"
@@ -9,7 +11,6 @@ import "core:unicode"
 import "core:log"
 import "../callisto/asset"
 
-// NOTE: Wavefront .obj importing is not implemented
 
 Obj_Token_Kind :: enum {
     comment,            // # -> eol

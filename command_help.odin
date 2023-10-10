@@ -11,14 +11,14 @@ cmd_help :: proc(args: []string) -> (ok: bool) {
         cmd_name := args[1]
         cmd_record, cmd_ok := command_registry[cmd_name]
         if !cmd_ok {
-            fmt.println("Command not found:", cmd_name)
+            println("Command not found:", cmd_name)
             return false
         }
         
         usage_proc = cmd_record.usage_proc
     }
 
-    fmt.println(usage_proc(args))
+    println(usage_proc(args))
     return true
 }
 

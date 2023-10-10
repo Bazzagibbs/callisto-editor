@@ -1,0 +1,13 @@
+Import a proprietary file format into its corresponding Galileo asset files.
+If the output directory is not empty, any existing assets will be overwritten
+but their UUIDs will be kept.
+
+Usage: 
+    import <file_type> <input_file_path> <output_directory>
+
+Arguments:
+    file_type         The file type to import. Valid options include:
+                          gltf
+                          png (soon)
+    input_file_path   The source file to be imported.
+    output_directory  The base directory to store Galileo asset files.

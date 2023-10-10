@@ -120,9 +120,16 @@ import_gltf :: proc(model_path: string) -> (
 
             meshes[mesh_idx] = asset.make_mesh(vertex_group_count, total_buf_size)
             mesh := &meshes[mesh_idx]
+            if src_mesh.name != nil {
+                mesh.name = strings.clone_from_cstring(src_mesh.name) 
+            } else {
+                mesh.name = strings.clone("mesh")
+            }
+            
             mesh_min := [3]f32{max(f32), max(f32), max(f32)}
             mesh_max := [3]f32{min(f32), min(f32), min(f32)}
             slice_begin := 0
+            
            
             for primitive, vert_group_idx in src_mesh.primitives {
                 vert_group := &mesh.vertex_groups[vert_group_idx]
