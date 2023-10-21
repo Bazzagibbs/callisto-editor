@@ -47,13 +47,21 @@ cmd_import :: proc(args: []string) -> (ok: bool) {
 }
 
 usage_import :: proc(args: []string) -> string {
-    return #load("help_docs/import.txt")
+    return `Import a proprietary file format into its corresponding Galileo asset files.
+If the output directory is not empty, any existing assets will be overwritten
+but their UUIDs will be kept.
+
+Usage: 
+    import <file_type> <input_file_path> <output_directory>
+
+Arguments:
+    file_type         The file type to import. Valid options include:
+                          gltf
+                          png (soon)
+    input_file_path   The source file to be imported.
+    output_directory  The base directory to store Galileo asset files.`
 }
 
-@(init, private)
-_register_import :: proc() {
-    register_command("import", cmd_import, usage_import)
-}
 
 import_gltf :: proc(in_file_path, out_dir: string) -> (ok: bool) {
     // TODO: Make sure in_file and out_dir are valid
@@ -100,7 +108,7 @@ import_gltf :: proc(in_file_path, out_dir: string) -> (ok: bool) {
         mesh_hash := xxhash.XXH3_64_default(mesh_data)
         header := importer.default_galileo_header(mesh_uuid, .mesh, mesh_hash)
 
-        _, err := os.write(out_file, mem.byte_slice(&header, size_of(importer.Galileo_Header)))
+        _, err := os.write(out_file, mem.byte_slice(&header, size_of(asset.Galileo_Header)))
         _, err  = os.write(out_file, mesh_data)
         if err != os.ERROR_NONE {
             log.error("Error writing asset file:", err)
@@ -110,4 +118,10 @@ import_gltf :: proc(in_file_path, out_dir: string) -> (ok: bool) {
     strings.builder_destroy(&file_name)
 
     return true
+}
+
+
+@(init, private)
+_register_import :: proc() {
+    register_command("import", cmd_import, usage_import)
 }

@@ -148,22 +148,22 @@ import_gltf :: proc(model_path: string) -> (
 
                 vert_group.buffer_slice = mesh.buffer[slice_begin:prim_info.buffer_slice_size]
                                 
-                vert_group.index, slice_begin    = make_subslice_of_type(u32,    mesh.buffer, slice_begin, prim_info.index_count)
-                vert_group.position, slice_begin = make_subslice_of_type([3]f32, mesh.buffer, slice_begin, prim_info.vertex_count)
-                vert_group.normal, slice_begin   = make_subslice_of_type([3]f32, mesh.buffer, slice_begin, prim_info.vertex_count)
-                vert_group.tangent, slice_begin  = make_subslice_of_type([4]f32, mesh.buffer, slice_begin, prim_info.vertex_count)
+                vert_group.index    = asset.make_subslice_of_type(u32,    mesh.buffer, &slice_begin, prim_info.index_count)
+                vert_group.position = asset.make_subslice_of_type([3]f32, mesh.buffer, &slice_begin, prim_info.vertex_count)
+                vert_group.normal   = asset.make_subslice_of_type([3]f32, mesh.buffer, &slice_begin, prim_info.vertex_count)
+                vert_group.tangent  = asset.make_subslice_of_type([4]f32, mesh.buffer, &slice_begin, prim_info.vertex_count)
 
                 for idx in 0..<len(vert_group.texcoords) {
-                    vert_group.texcoords[idx], slice_begin = make_subslice_of_type([2]f32, mesh.buffer, slice_begin, prim_info.vertex_count)
+                    vert_group.texcoords[idx] = asset.make_subslice_of_type([2]f32, mesh.buffer, &slice_begin, prim_info.vertex_count)
                 }
                 for idx in 0..<len(vert_group.colors) {
-                    vert_group.colors[idx], slice_begin = make_subslice_of_type([4]u8, mesh.buffer, slice_begin, prim_info.vertex_count)
+                    vert_group.colors[idx] = asset.make_subslice_of_type([4]u8, mesh.buffer, &slice_begin, prim_info.vertex_count)
                 }
                 for idx in 0..<len(vert_group.joints) {
-                    vert_group.joints[idx], slice_begin = make_subslice_of_type([4]u16, mesh.buffer, slice_begin, prim_info.vertex_count)
+                    vert_group.joints[idx] = asset.make_subslice_of_type([4]u16, mesh.buffer, &slice_begin, prim_info.vertex_count)
                 }
                 for idx in 0..<len(vert_group.weights) {
-                    vert_group.weights[idx], slice_begin = make_subslice_of_type([4]u16, mesh.buffer, slice_begin, prim_info.vertex_count)
+                    vert_group.weights[idx] = asset.make_subslice_of_type([4]u16, mesh.buffer, &slice_begin, prim_info.vertex_count)
                 }
 
                 gltf_unpack_indices(primitive.indices, vert_group.index)
@@ -181,7 +181,7 @@ import_gltf :: proc(model_path: string) -> (
                         mesh_max.y = math.max(max.y, mesh_max.y)
                         mesh_max.z = math.max(max.z, mesh_max.z)
 
-                        vert_group.bounds.center, vert_group.bounds.extents = min_max_to_center_extents(min, max)
+                        vert_group.bounds.center, vert_group.bounds.extents = cc.min_max_to_center_extents(min, max)
                         ok = gltf_unpack_attribute([3]f32, attribute.data, vert_group.position); if !ok {
                             log.error("Importer [glTF]: Error unpacking vertex positions")
                         }
@@ -215,7 +215,7 @@ import_gltf :: proc(model_path: string) -> (
                     }
                 }
             }
-            mesh.bounds.center, mesh.bounds.extents = min_max_to_center_extents(mesh_min, mesh_max)
+            mesh.bounds.center, mesh.bounds.extents = cc.min_max_to_center_extents(mesh_min, mesh_max)
         }
 
         // TODO: make models from mesh/material pairs
@@ -283,14 +283,7 @@ gltf_unpack_indices :: proc(accessor: ^cgltf.accessor, out_indices: []u32) {
     }
 }
 
-make_subslice_of_type :: proc($T: typeid, data_buffer: []u8, offset, length: int) -> (subslice: []T, next_offset: int){
-    stride := size_of(T)
-    subslice = transmute([]T) mem.Raw_Slice{&data_buffer[offset], length}
-    return subslice, (offset + stride * length)
-}
 
-min_max_to_center_extents :: proc(min, max: [3]f32) -> (center, extents: [3]f32) {
-    center  = 0.5 * (max + min)
-    extents = 0.5 * (max - min)
-    return
+gltf_unpack_construct :: proc() -> asset.Construct {
+    return {}
 }

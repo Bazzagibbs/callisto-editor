@@ -61,9 +61,9 @@ main :: proc() {
 // Allocates using temp allocator
 get_command :: proc(reader: ^bufio.Reader, out_args: ^[]string, prev_ok: bool) -> (next: bool) {
     if prev_ok {
-        print("  CAL> ")
+        print("\u001b[32mCAL>\u001b[0m ")
     } else {
-        print("! CAL> ")
+        print("\u001b[31mCAL>\u001b[0m ")
     }
 
     str, err := bufio.reader_read_string(reader, '\n', context.temp_allocator)

@@ -9,6 +9,7 @@ import "core:path/filepath"
 import "core:strings"
 import "core:fmt"
 import "core:log"
+import "core:io"
 
 FILE_EXT :: ".gali"
 
@@ -26,13 +27,19 @@ file_overwrite_or_new :: proc(base_dir: string, file_name: string) -> (file: os.
     file_path := filepath.join({base_dir, strings.to_string(sb)})
     defer delete(file_path)
 
-    existing_meta, file_exists := asset.read_metadata(file_path)
-    if file_exists {
-        uuid = existing_meta.uuid
-        log.infof("Overwriting existing file: %s with UUID: %32x", file_path, uuid)
-    } else {
-        uuid = common.generate_uuid()
-        log.infof("Creating new file: %s with UUID: %32x", file_path, uuid)
+    uuid = common.generate_uuid()
+
+    old_file, file_err := os.open(file_path)
+    if file_err == os.ERROR_NONE {
+        // file exists. If valid asset, use its existing uuid.
+        defer os.close(old_file)
+        
+        file_reader := io.to_reader(os.stream_from_handle(file))
+
+        gali_header, meta_ok := asset.read_header(file_reader)
+        if meta_ok {
+            uuid = gali_header.uuid
+        }
     }
 
     new_file, err := os.open(file_path, os.O_WRONLY | os.O_CREATE | os.O_TRUNC)
@@ -44,3 +51,4 @@ file_overwrite_or_new :: proc(base_dir: string, file_name: string) -> (file: os.
     return new_file, uuid, true
 
 }
+

@@ -2,10 +2,10 @@ package callisto_editor
 
 import "core:fmt"
 import "core:strings"
+import "core:slice"
 
 cmd_help :: proc(args: []string) -> (ok: bool) {
 
-    usage_proc: Usage_Proc = usage_help
 
     if len(args) > 1 {
         cmd_name := args[1]
@@ -15,10 +15,22 @@ cmd_help :: proc(args: []string) -> (ok: bool) {
             return false
         }
         
-        usage_proc = cmd_record.usage_proc
+        println(cmd_record.usage_proc(args[1:]))
+        return true
     }
 
-    println(usage_proc(args))
+    // print out all registered commands, sorted alphabetically
+    command_names, _ := slice.map_keys(command_registry)
+    defer delete(command_names)
+
+    slice.sort(command_names)
+
+    println("Available commands:")
+    for name in command_names {
+        println(" ", name)
+    }
+    
+
     return true
 }
 
