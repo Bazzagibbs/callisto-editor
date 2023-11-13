@@ -30,7 +30,12 @@ import_gltf :: proc(model_path: string) -> (
         }
         defer cgltf.free(file_data)
         res = cgltf.load_buffers({}, file_data, model_path_cstr); if res != .success {
-            log.error("Importer [glTF]: Error loading file buffers:", res)
+            #partial switch res {
+            case .file_not_found:
+                log.error("Importer [glTF]: Error loading file buffers:", res, "\nIs the .gltf supposed to have other files with it?")
+            case:
+                log.error("Importer [glTF]: Error loading file buffers:", res)
+            }
             return {}, {}, {}, {}, {}, false
         }
 
@@ -107,12 +112,12 @@ import_gltf :: proc(model_path: string) -> (
                     // vertex_group_calculate_flat_normals(vertex_group)
                     // TODO: Discard provided tangents
                     has_tangents = false
-                    log.error("Importer [glTF]: Mesh is missing normals. Normal generation not implemented.")
+                    log.warn("Importer [glTF]: Mesh is missing normals. Normal generation not implemented.")
                     // return {}, {}, {}, {}, {}, false
                 } 
 
                 if has_tangents == false {
-                    log.error("Importer [glTF]: Mesh is missing tangents. Tangent generation not implemented.")
+                    log.warn("Importer [glTF]: Mesh is missing tangents. Tangent generation not implemented.")
                     // return {}, {}, {}, {}, {}, false
                     // vertex_group_calculate_tangents(vertex_group)
                 }
