@@ -14,6 +14,13 @@ import "vendor:cgltf"
 import cc "../callisto/common"
 import "../callisto/asset"
 
+GLTF_TO_GALI_BASIS :: matrix[4, 4]f32 {
+    -1, 0,  0,  0,
+    0,  0,  1,  0,
+    0,  1,  0,  0,
+    0,  0,  0,  1,
+}
+
 import_gltf :: proc(model_path: string) -> (
     meshes:     []asset.Mesh,
     materials:  []asset.Material, 
@@ -198,17 +205,27 @@ import_gltf :: proc(model_path: string) -> (
                         ok = gltf_unpack_attribute([3]f32, attribute.data, temp_slice); if !ok {
                             log.error("Importer [glTF]: Error unpacking vertex positions")
                         }
+                        for &val in temp_slice {
+                            gltf_change_basis_to_gali(&val)
+                        }
                     case .normal:
                         temp_cursor = vert_group.normal_offset
                         temp_slice := asset.make_subslice_of_type([3]f32, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
                         ok = gltf_unpack_attribute([3]f32, attribute.data, temp_slice); if !ok {
                             log.error("Importer [glTF]: Error unpacking vertex normals")
                         }
+                        for &val in temp_slice {
+                            gltf_change_basis_to_gali(&val)
+                        }
                     case .tangent:
                         temp_cursor = vert_group.tangent_offset
                         temp_slice := asset.make_subslice_of_type([4]f32, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
                         ok = gltf_unpack_attribute([4]f32, attribute.data, temp_slice); if !ok {
                             log.error("Importer [glTF]: Error unpacking vertex tangents")
+                        }
+                        for &val in temp_slice {
+                            fake_val := transmute(^[3]f32)(&val)
+                            gltf_change_basis_to_gali(fake_val)
                         }
                     case .texcoord: 
                         temp_cursor = asset.get_vertex_group_channel_offset([2]u16, u64(vert_group.vertex_count), vert_group.texcoord_offset, u8(attribute.index))
@@ -311,4 +328,8 @@ gltf_unpack_indices :: proc(accessor: ^cgltf.accessor, out_indices: []u32) {
 
 gltf_unpack_construct :: proc() -> asset.Construct {
     return {}
+}
+
+gltf_change_basis_to_gali :: proc(vector: ^[3]f32) {
+    vector^ = ([4]f32{vector.x, vector.y, vector.z, 0} * GLTF_TO_GALI_BASIS).xyz
 }
