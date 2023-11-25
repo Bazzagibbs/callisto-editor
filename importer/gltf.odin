@@ -89,7 +89,7 @@ import_gltf :: proc(model_path: string) -> (
 
                     case .texcoord:  // Multi-channel attribute
                         prim_info.n_texcoord_channels = math.max(prim_info.n_texcoord_channels, u64(attribute.index) + 1)
-                        prim_info.element_size += size_of([2]f32)
+                        prim_info.element_size += size_of([2]u16)
 
                     case .color:
                         prim_info.n_color_channels = math.max(prim_info.n_color_channels, u64(attribute.index) + 1)
@@ -105,7 +105,7 @@ import_gltf :: proc(model_path: string) -> (
                     
                 }
 
-                prim_info.buffer_slice_size = (prim_info.index_count * 4) + prim_info.element_size * prim_info.vertex_count
+                prim_info.buffer_slice_size = (prim_info.index_count * size_of(u32)) + prim_info.element_size * prim_info.vertex_count
                 total_buf_size += prim_info.buffer_slice_size
 
                 if has_normals == false {
@@ -131,54 +131,59 @@ import_gltf :: proc(model_path: string) -> (
                 mesh.name = strings.clone("mesh")
             }
             
-            mesh_min := [3]f32{max(f32), max(f32), max(f32)}
-            mesh_max := [3]f32{min(f32), min(f32), min(f32)}
+            mesh_min := cc.vec3{max(f32), max(f32), max(f32)}
+            mesh_max := cc.vec3{min(f32), min(f32), min(f32)}
             slice_begin := 0
             
            
             for primitive, vert_group_idx in src_mesh.primitives {
                 vert_group := &mesh.vertex_groups[vert_group_idx]
                 prim_info := &primitive_temp_infos[vert_group_idx]
-
-                if prim_info.n_texcoord_channels > 0 {
-                    vert_group.texcoords = make([][][2]f32, prim_info.n_texcoord_channels)
-                }
-                if prim_info.n_color_channels > 0 {
-                    vert_group.colors = make([][][4]u8, prim_info.n_color_channels)
-                }
-                if prim_info.n_joint_weight_channels > 0 {
-                    vert_group.joints = make([][][4]u16, prim_info.n_joint_weight_channels)
-                    vert_group.weights = make([][][4]u16, prim_info.n_joint_weight_channels)
-                }
-
+                
                 vert_group.buffer_slice = mesh.buffer[slice_begin:prim_info.buffer_slice_size]
-                                
-                vert_group.index    = asset.make_subslice_of_type(u32,    mesh.buffer, &slice_begin, prim_info.index_count)
-                vert_group.position = asset.make_subslice_of_type([3]f32, mesh.buffer, &slice_begin, prim_info.vertex_count)
-                vert_group.normal   = asset.make_subslice_of_type([3]f32, mesh.buffer, &slice_begin, prim_info.vertex_count)
-                vert_group.tangent  = asset.make_subslice_of_type([4]f32, mesh.buffer, &slice_begin, prim_info.vertex_count)
 
-                for idx in 0..<len(vert_group.texcoords) {
-                    vert_group.texcoords[idx] = asset.make_subslice_of_type([2]f32, mesh.buffer, &slice_begin, prim_info.vertex_count)
+                vert_group.index_count                  = u32(prim_info.index_count)
+                vert_group.vertex_count                 = u32(prim_info.vertex_count)
+                vert_group.texcoord_channel_count       = u8(prim_info.n_texcoord_channels)
+                vert_group.color_channel_count          = u8(prim_info.n_color_channels)
+                vert_group.joint_weight_channel_count   = u8(prim_info.n_joint_weight_channels)
+                vert_group.total_channel_count          = 3 + vert_group.texcoord_channel_count + vert_group.color_channel_count + (vert_group.joint_weight_channel_count * 2)
+                
+                temp_cursor := vert_group.index_offset
+                vert_group.index_offset = temp_cursor
+                indices := asset.make_subslice_of_type(u32, mesh.buffer, &temp_cursor, u64(vert_group.index_count))
+                vert_group.position_offset = temp_cursor
+                _ = asset.make_subslice_of_type(cc.vec3, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
+                vert_group.normal_offset = temp_cursor
+                _ = asset.make_subslice_of_type(cc.vec3, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
+                vert_group.tangent_offset = temp_cursor
+                _ = asset.make_subslice_of_type(cc.vec4, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
+
+                vert_group.texcoord_offset = temp_cursor
+                if vert_group.texcoord_channel_count > 0 {
+                    _ = asset.make_subslice_of_type([2]u16, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count) * u64(vert_group.texcoord_channel_count))
                 }
-                for idx in 0..<len(vert_group.colors) {
-                    vert_group.colors[idx] = asset.make_subslice_of_type([4]u8, mesh.buffer, &slice_begin, prim_info.vertex_count)
+                vert_group.color_offset = temp_cursor
+                if vert_group.color_channel_count > 0 {
+                    _ = asset.make_subslice_of_type(cc.color32, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count) * u64(vert_group.color_channel_count))
                 }
-                for idx in 0..<len(vert_group.joints) {
-                    vert_group.joints[idx] = asset.make_subslice_of_type([4]u16, mesh.buffer, &slice_begin, prim_info.vertex_count)
+                vert_group.joint_offset = temp_cursor
+                if vert_group.joint_weight_channel_count > 0 {
+                    _ = asset.make_subslice_of_type([4]u16, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count) * u64(vert_group.joint_weight_channel_count))
                 }
-                for idx in 0..<len(vert_group.weights) {
-                    vert_group.weights[idx] = asset.make_subslice_of_type([4]u16, mesh.buffer, &slice_begin, prim_info.vertex_count)
+                vert_group.weight_offset = temp_cursor
+                if vert_group.joint_weight_channel_count > 0 {
+                    _ = asset.make_subslice_of_type([4]u16, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count) * u64(vert_group.joint_weight_channel_count))
                 }
 
-                gltf_unpack_indices(primitive.indices, vert_group.index)
+                gltf_unpack_indices(primitive.indices, indices)
                 
                 for attribute in primitive.attributes {
                     // Copy buffers
                     #partial switch attribute.type {
                     case .position:
-                        min := [3]f32{attribute.data.min[0], attribute.data.min[1], attribute.data.min[2]}
-                        max := [3]f32{attribute.data.max[0], attribute.data.max[1], attribute.data.max[2]}
+                        min := cc.vec3(attribute.data.min.xyz)
+                        max := cc.vec3(attribute.data.max.xyz)
                         mesh_min.x = math.min(min.x, mesh_min.x)
                         mesh_min.y = math.min(min.y, mesh_min.y)
                         mesh_min.z = math.min(min.z, mesh_min.z)
@@ -187,32 +192,47 @@ import_gltf :: proc(model_path: string) -> (
                         mesh_max.z = math.max(max.z, mesh_max.z)
 
                         vert_group.bounds.center, vert_group.bounds.extents = cc.min_max_to_center_extents(min, max)
-                        ok = gltf_unpack_attribute([3]f32, attribute.data, vert_group.position); if !ok {
+                        
+                        temp_cursor = vert_group.position_offset
+                        temp_slice := asset.make_subslice_of_type([3]f32, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
+                        ok = gltf_unpack_attribute([3]f32, attribute.data, temp_slice); if !ok {
                             log.error("Importer [glTF]: Error unpacking vertex positions")
                         }
                     case .normal:
-                        ok = gltf_unpack_attribute([3]f32, attribute.data, vert_group.normal); if !ok {
+                        temp_cursor = vert_group.normal_offset
+                        temp_slice := asset.make_subslice_of_type([3]f32, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
+                        ok = gltf_unpack_attribute([3]f32, attribute.data, temp_slice); if !ok {
                             log.error("Importer [glTF]: Error unpacking vertex normals")
                         }
                     case .tangent:
-                        ok = gltf_unpack_attribute([4]f32, attribute.data, vert_group.tangent); if !ok {
+                        temp_cursor = vert_group.tangent_offset
+                        temp_slice := asset.make_subslice_of_type([4]f32, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
+                        ok = gltf_unpack_attribute([4]f32, attribute.data, temp_slice); if !ok {
                             log.error("Importer [glTF]: Error unpacking vertex tangents")
                         }
                     case .texcoord: 
-                        ok = gltf_unpack_attribute([2]f32, attribute.data, vert_group.texcoords[attribute.index]); if !ok {
+                        temp_cursor = asset.get_vertex_group_channel_offset([2]u16, u64(vert_group.vertex_count), vert_group.texcoord_offset, u8(attribute.index))
+                        temp_slice := asset.make_subslice_of_type([2]u16, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
+                        ok = gltf_unpack_attribute([2]u16, attribute.data, temp_slice); if !ok {
                             log.error("Importer [glTF]: Error unpacking vertex UVs")
                         }
                     case .color: 
-                        ok = gltf_unpack_attribute([4]u8, attribute.data, vert_group.colors[attribute.index]); if !ok {
+                        temp_cursor = asset.get_vertex_group_channel_offset([4]u8, u64(vert_group.vertex_count), vert_group.color_offset, u8(attribute.index))
+                        temp_slice := asset.make_subslice_of_type([4]u8, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
+                        ok = gltf_unpack_attribute([4]u8, attribute.data, temp_slice); if !ok {
                             log.error("Importer [glTF]: Error unpacking vertex colors")
                         }
                     case .joints: 
-                        ok = gltf_unpack_attribute([4]u16, attribute.data, vert_group.joints[attribute.index]); if !ok {
+                        temp_cursor = asset.get_vertex_group_channel_offset([4]u16, u64(vert_group.vertex_count), vert_group.joint_offset, u8(attribute.index))
+                        temp_slice := asset.make_subslice_of_type([4]u16, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
+                        ok = gltf_unpack_attribute([4]u16, attribute.data, temp_slice); if !ok {
                             log.error("Importer [glTF]: Error unpacking vertex colors")
                         }
                         // These need to be non-normalized
                     case .weights: 
-                        ok = gltf_unpack_attribute([4]u16, attribute.data, vert_group.weights[attribute.index]); if !ok {
+                        temp_cursor = asset.get_vertex_group_channel_offset([4]u16, u64(vert_group.vertex_count), vert_group.weight_offset, u8(attribute.index))
+                        temp_slice := asset.make_subslice_of_type([4]u16, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
+                        ok = gltf_unpack_attribute([4]u16, attribute.data, temp_slice); if !ok {
                             log.error("Importer [glTF]: Error unpacking vertex colors")
                         }
                     // case .custom:
@@ -271,7 +291,7 @@ gltf_unpack_attribute :: proc($T: typeid/[$N]$E, accessor: ^cgltf.accessor, out_
         temp_out_data := (transmute([^]E)raw_data(out_data))[:n_components]
         for src_value, src_idx in float_storage {
             if accessor.normalized {
-                temp_out_data[src_idx] = E(src_value * f32(max(E)))
+                temp_out_data[src_idx] = E(math.round_f32(src_value * f32(max(E))))
             } else {
                 temp_out_data[src_idx] = E(src_value)
             }
