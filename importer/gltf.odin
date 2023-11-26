@@ -9,17 +9,11 @@ import "core:fmt"
 import "core:slice"
 import "core:mem"
 import "core:runtime"
+import "core:math/linalg"
 
 import "vendor:cgltf"
 import cc "../callisto/common"
 import "../callisto/asset"
-
-GLTF_TO_GALI_BASIS :: matrix[4, 4]f32 {
-    -1, 0,  0,  0,
-    0,  0,  1,  0,
-    0,  1,  0,  0,
-    0,  0,  0,  1,
-}
 
 import_gltf :: proc(model_path: string) -> (
     meshes:     []asset.Mesh,
@@ -32,16 +26,16 @@ import_gltf :: proc(model_path: string) -> (
         defer delete(model_path_cstr)
         file_data, res := cgltf.parse_file({}, model_path_cstr); if res != .success {
         // file_data, err := gltf.load_from_file(model_path, true); if err != nil {
-            log.error("Importer [glTF]: Error loading file:", res)
+            log.error("Error loading file:", res)
             return {}, {}, {}, {}, {}, false
         }
         defer cgltf.free(file_data)
         res = cgltf.load_buffers({}, file_data, model_path_cstr); if res != .success {
             #partial switch res {
             case .file_not_found:
-                log.error("Importer [glTF]: Error loading file buffers:", res, "\nIs the .gltf supposed to have other files with it?")
+                log.error("Error loading file buffers:", res, "\nIs the .gltf supposed to have other files with it?")
             case:
-                log.error("Importer [glTF]: Error loading file buffers:", res)
+                log.error("Error loading file buffers:", res)
             }
             return {}, {}, {}, {}, {}, false
         }
@@ -107,7 +101,7 @@ import_gltf :: proc(model_path: string) -> (
                         prim_info.element_size += size_of([4]u16) * 2 // Joints and weights channels are 1:1
 
                     case .custom: // TODO: support custom attributes as an extension
-                        log.warn("[Importer: glTF] Custom attributes not implemented:", attribute.name)
+                        log.warn("Custom attributes not implemented:", attribute.name)
                     }
                     
                 }
@@ -119,12 +113,12 @@ import_gltf :: proc(model_path: string) -> (
                     // vertex_group_calculate_flat_normals(vertex_group)
                     // TODO: Discard provided tangents
                     has_tangents = false
-                    log.warn("Importer [glTF]: Mesh is missing normals. Normal generation not implemented.")
+                    log.warn("Mesh is missing normals. Normal generation not implemented.")
                     // return {}, {}, {}, {}, {}, false
                 } 
 
                 if has_tangents == false {
-                    log.warn("Importer [glTF]: Mesh is missing tangents. Tangent generation not implemented.")
+                    log.warn("Mesh is missing tangents. Tangent generation not implemented.")
                     // return {}, {}, {}, {}, {}, false
                     // vertex_group_calculate_tangents(vertex_group)
                 }
@@ -203,7 +197,7 @@ import_gltf :: proc(model_path: string) -> (
                         temp_cursor = vert_group.position_offset
                         temp_slice := asset.make_subslice_of_type([3]f32, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
                         ok = gltf_unpack_attribute([3]f32, attribute.data, temp_slice); if !ok {
-                            log.error("Importer [glTF]: Error unpacking vertex positions")
+                            log.error("Error unpacking vertex positions")
                         }
                         for &val in temp_slice {
                             gltf_change_basis_to_gali(&val)
@@ -212,7 +206,7 @@ import_gltf :: proc(model_path: string) -> (
                         temp_cursor = vert_group.normal_offset
                         temp_slice := asset.make_subslice_of_type([3]f32, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
                         ok = gltf_unpack_attribute([3]f32, attribute.data, temp_slice); if !ok {
-                            log.error("Importer [glTF]: Error unpacking vertex normals")
+                            log.error("Error unpacking vertex normals")
                         }
                         for &val in temp_slice {
                             gltf_change_basis_to_gali(&val)
@@ -221,7 +215,7 @@ import_gltf :: proc(model_path: string) -> (
                         temp_cursor = vert_group.tangent_offset
                         temp_slice := asset.make_subslice_of_type([4]f32, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
                         ok = gltf_unpack_attribute([4]f32, attribute.data, temp_slice); if !ok {
-                            log.error("Importer [glTF]: Error unpacking vertex tangents")
+                            log.error("Error unpacking vertex tangents")
                         }
                         for &val in temp_slice {
                             fake_val := transmute(^[3]f32)(&val)
@@ -231,26 +225,26 @@ import_gltf :: proc(model_path: string) -> (
                         temp_cursor = asset.get_vertex_group_channel_offset([2]u16, u64(vert_group.vertex_count), vert_group.texcoord_offset, u8(attribute.index))
                         temp_slice := asset.make_subslice_of_type([2]u16, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
                         ok = gltf_unpack_attribute([2]u16, attribute.data, temp_slice); if !ok {
-                            log.error("Importer [glTF]: Error unpacking vertex UVs")
+                            log.error("Error unpacking vertex UVs")
                         }
                     case .color: 
                         temp_cursor = asset.get_vertex_group_channel_offset([4]u8, u64(vert_group.vertex_count), vert_group.color_offset, u8(attribute.index))
                         temp_slice := asset.make_subslice_of_type([4]u8, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
                         ok = gltf_unpack_attribute([4]u8, attribute.data, temp_slice); if !ok {
-                            log.error("Importer [glTF]: Error unpacking vertex colors")
+                            log.error("Error unpacking vertex colors")
                         }
                     case .joints: 
                         temp_cursor = asset.get_vertex_group_channel_offset([4]u16, u64(vert_group.vertex_count), vert_group.joint_offset, u8(attribute.index))
                         temp_slice := asset.make_subslice_of_type([4]u16, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
                         ok = gltf_unpack_attribute([4]u16, attribute.data, temp_slice); if !ok {
-                            log.error("Importer [glTF]: Error unpacking vertex colors")
+                            log.error("Error unpacking vertex colors")
                         }
                         // These need to be non-normalized
                     case .weights: 
                         temp_cursor = asset.get_vertex_group_channel_offset([4]u16, u64(vert_group.vertex_count), vert_group.weight_offset, u8(attribute.index))
                         temp_slice := asset.make_subslice_of_type([4]u16, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
                         ok = gltf_unpack_attribute([4]u16, attribute.data, temp_slice); if !ok {
-                            log.error("Importer [glTF]: Error unpacking vertex colors")
+                            log.error("Error unpacking vertex colors")
                         }
                     // case .custom:
 
@@ -330,6 +324,14 @@ gltf_unpack_construct :: proc() -> asset.Construct {
     return {}
 }
 
+
+GLTF_TO_GALI_BASIS :: matrix[4, 4]f32 {
+    1,  0,  0,  0,
+    0,  0,  1,  0,
+    0,  -1, 0,  0,
+    0,  0,  0,  1,
+}
+
 gltf_change_basis_to_gali :: proc(vector: ^[3]f32) {
-    vector^ = ([4]f32{vector.x, vector.y, vector.z, 0} * GLTF_TO_GALI_BASIS).xyz
+    vector^ = ([4]f32{vector.x, vector.y, vector.z, 1} * GLTF_TO_GALI_BASIS).xyz
 }
