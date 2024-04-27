@@ -192,7 +192,7 @@ import_gltf :: proc(model_path: string) -> (
                         mesh_max.y = math.max(max.y, mesh_max.y)
                         mesh_max.z = math.max(max.z, mesh_max.z)
 
-                        vert_group.bounds.center, vert_group.bounds.extents = cc.min_max_to_center_extents(min, max)
+                        vert_group.bounds.center, vert_group.bounds.extent = cc.min_max_to_center_extents(min, max)
                         
                         temp_cursor = vert_group.position_offset
                         temp_slice := asset.make_subslice_of_type([3]f32, mesh.buffer, &temp_cursor, u64(vert_group.vertex_count))
@@ -251,7 +251,7 @@ import_gltf :: proc(model_path: string) -> (
                     }
                 }
             }
-            mesh.bounds.center, mesh.bounds.extents = cc.min_max_to_center_extents(mesh_min, mesh_max)
+            mesh.bounds.center, mesh.bounds.extent = cc.min_max_to_center_extents(mesh_min, mesh_max)
         }
 
         // TODO: make models from mesh/material pairs
