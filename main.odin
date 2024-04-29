@@ -68,8 +68,9 @@ get_command :: proc(reader: ^bufio.Reader, out_args: ^[]string, prev_ok: bool) -
 
     str, err := bufio.reader_read_string(reader, '\n', context.temp_allocator)
     if err != .None {
-        if err != .Unknown { // sigint errors with "unknown", which should close the program without error.
-            log.error("Error getting command:", err)
+        #partial switch err {
+        case .EOF: return false
+        case: log.error("Error getting command:", err)
         }
         return false
     }
