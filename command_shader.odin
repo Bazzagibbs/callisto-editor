@@ -1,10 +1,16 @@
 package callisto_editor
 
+import "core:log"
 import "shader"
 
 
-cmd_shader :: proc() {
+cmd_shader :: proc(args: []string) -> (ok: bool) {
+    log.error("Not implemented")
+    return false
+}
 
+usage_shader :: proc(args: []string) -> string {
+    return "I don't know yet :)"
 }
 
 @(init, private)
