@@ -1,4 +1,4 @@
-package callisto_editor_shader
+package callisto_importer
 
 import "core:log"
 import "core:c"
@@ -7,6 +7,26 @@ import "core:runtime"
 import glsl "glslang"
 import "../callisto"
 
+@(init, private)
+_register_shader :: proc() {
+    register_file_handler("shader", importer_shader, usage_shader, short_desc_shader)
+}
+
+
+importer_shader :: proc(options: []Option_Pair, file_name: string, output_dir: string) -> Command_Result {
+    log.error("Not implemented")
+    return .Execution_Error
+}
+
+usage_shader :: proc(args: []string) -> string {
+    return "I don't know yet :)"
+}
+
+short_desc_shader :: proc() -> string {
+    return "Compile GLSL shaders to SPIRV"
+}
+
+
 Shader_Data :: struct {
     // input_layout
     spirv: []u32,
@@ -14,13 +34,13 @@ Shader_Data :: struct {
 
 
 // Allocates: when res == .Ok, shader_data must be deleted with `shader_data_delete()`
-compile :: proc(stage: glsl.Stage, source: cstring) -> (shader_data: Shader_Data, res: callisto.Result) {
-    return compile_vulkan(stage, source)
+shader_compile :: proc(stage: glsl.Stage, source: cstring) -> (shader_data: Shader_Data, res: callisto.Result) {
+    return shader_compile_vulkan(stage, source)
 }
 
 
 // Allocates: when res == .Ok, shader_data must be deleted with `shader_data_delete()`
-compile_vulkan :: proc(stage: glsl.Stage, source: cstring) -> (shader_data: Shader_Data, res: callisto.Result) {
+shader_compile_vulkan :: proc(stage: glsl.Stage, source: cstring) -> (shader_data: Shader_Data, res: callisto.Result) {
     callback_ctx := context
 
     input := glsl.Input {

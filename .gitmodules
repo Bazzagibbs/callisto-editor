@@ -1,6 +1,6 @@
 [submodule "callisto"]
 	path = callisto
-	url = git@github.com:Bazzagibbs/callisto.git
-[submodule "shader/libshaderc"]
-	path = shader/libshaderc
-	url = git@github.com:Bazzas-Forks/odin-libshaderc.git
+    url = git@github.com:Bazzagibbs/callisto.git
+[submodule "importer/glslang"]
+	path = importer/glslang
+	url = git@github.com:Bazzagibbs/odin-glslang.git

@@ -1,10 +1,16 @@
 package callisto_editor
 
-import "core:fmt"
+import "core:log"
+import "common"
+
 
 command_registry: map[string]Command_Record
+command_aliases : map[string]string
 
-Command_Proc    :: #type proc(args: []string) -> (ok: bool)
+
+MAX_ALIAS_DEPTH :: 8
+Command_Result  :: common.Command_Result
+Command_Proc    :: #type proc(args: []string) -> Command_Result
 Usage_Proc      :: #type proc(args: []string) -> string
 
 
@@ -19,14 +25,36 @@ register_command :: proc(command_name: string, command_proc: Command_Proc, usage
     command_registry[command_name] = {command_proc, usage_proc}
 }
 
-parse_command :: proc(args: []string) -> (ok: bool) {
-    cmd_name := args[0]
-    cmd_record, cmd_ok := command_registry[cmd_name] 
-    if !cmd_ok {
-        fmt.println("Command not found:", cmd_name)
-        return false
+
+// This could maybe be exposed as its own command?
+register_alias :: proc(alias: string, command_name: string) {
+    command_aliases[alias] = command_name
+}
+
+
+get_command_record :: proc(cmd_name: string) -> (record: Command_Record, exists: bool) {
+    cmd_name := cmd_name
+
+    record, exists = command_registry[cmd_name]
+    if exists do return
+
+    for i in 0..<MAX_ALIAS_DEPTH {
+        cmd_name, exists = command_aliases[cmd_name]
+        if !exists do return {}, false
+
+        record, exists = command_registry[cmd_name]
+        if exists do return
     }
-    
-    return cmd_record.command_proc(args)
+
+    log.error("Reached max alias depth for command:", cmd_name)
+    return {}, false
+}
+
+
+parse_command :: proc(args: []string) -> Command_Result {
+    record, exists := get_command_record(args[0])
+    if !exists do return .Input_Error
+
+    return record.command_proc(args)
 }
 

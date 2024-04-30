@@ -13,6 +13,13 @@ import "core:log"
 import "core:hash/xxhash"
 import "core:mem"
 
+
+@(init, private)
+_register_import :: proc() {
+    register_command("import", cmd_import, usage_import)
+}
+
+
 // `file_type`         The file type to import.
 // `input_file_path`   The source file to be imported.
 // `output_directory`  The base directory to store the resulting Galileo asset files.
@@ -29,43 +36,63 @@ Import_File_Type :: enum {
 
 // TODO: support this command structure. Do reflection on the args struct to get docs, etc.
 // cmd_import :: proc(args: ^Import_Args) -> (res: Result)
-cmd_import :: proc(args: []string) -> (ok: bool) {
+cmd_import :: proc(args: []string) -> Command_Result {
     if len(args) < 4 {
-        println(usage_import(args))
-        return true
+        log.info(usage_import(args))
+        return .Input_Error
     }
     
     switch args[1] {
         case "gltf":
             return import_gltf(args[2], args[3])
         case: 
-            println(usage_import(args))
-        return false
+            log.info(usage_import(args))
+            return .Input_Error
     }
 
-    return true
+    return .Ok
 }
 
 usage_import :: proc(args: []string) -> string {
-    return `Import a proprietary file format into its corresponding Galileo asset files.
+    b: strings.Builder
+    strings.builder_init(&b, allocator = context.temp_allocator)
+
+    if (len(args) > 1) {
+        // Try getting specific help
+        handler_record, exists := importer.file_handler_registry[args[1]]
+        if !exists {
+            fmt.sbprintln(&b, args[1], "file type importer could not be found.")
+            return strings.to_string(b)
+        } 
+
+        return handler_record.usage(args[1:])
+    }
+
+fmt.sbprintln(&b, 
+`Import source files into its corresponding Galileo asset files.
 If the output directory is not empty, any existing assets will be overwritten
 but their UUIDs will be kept.
 
 Usage: 
-    import <file_type> <input_file_path> <output_directory>
+    import <file_type> [options] <input_files...> <output_directory>
 
 Arguments:
-    file_type         The file type to import. Valid options include:
-                          gltf
-                          png (soon)
-    input_file_path   The source file to be imported.
-    output_directory  The base directory to store Galileo asset files.`
+    file_type         The type of file to import. Supported file types:`)
+
+importer.sb_printf_short_descs(&b, "                          %-12v %v\n")
+
+fmt.sbprintln(&b,`
+    options           Depends on file type. Run "help import <file_type>" for valid options.
+    input_files       One or more source files to be imported.
+    output_directory  The base directory to store Galileo asset files.`)
+
+
+    return strings.to_string(b)
 }
 
 
-import_gltf :: proc(in_file_path, out_dir: string) -> (ok: bool) {
+import_gltf :: proc(in_file_path, out_dir: string) -> Command_Result {
     // TODO: Make sure in_file and out_dir are valid
-    
     
     meshes, materials, textures, models, constructs, ok_import := importer.import_gltf(in_file_path)
     defer {
@@ -117,11 +144,7 @@ import_gltf :: proc(in_file_path, out_dir: string) -> (ok: bool) {
 
     strings.builder_destroy(&file_name)
 
-    return true
+    return .Ok
 }
 
 
-@(init, private)
-_register_import :: proc() {
-    register_command("import", cmd_import, usage_import)
-}

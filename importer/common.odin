@@ -27,3 +27,5 @@ default_galileo_header :: proc(uuid: cc.Uuid, asset_type: asset.Type, checksum: 
         checksum = checksum,
     }
 }
+
+

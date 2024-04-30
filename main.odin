@@ -12,10 +12,16 @@ import "core:strings"
 cmdline_in : bufio.Reader
 cmdline_out: io.Writer
 
+print_prompt :: fmt.print
+
 main :: proc() {
     // DEBUG SETUP
     // ///////////
-    context.logger = log.create_console_logger()
+    logger_opts := log.Options {
+        .Terminal_Color,
+    }
+
+    context.logger = log.create_console_logger(opt = logger_opts)
     defer log.destroy_console_logger(context.logger)
 
     track: mem.Tracking_Allocator
@@ -42,15 +48,19 @@ main :: proc() {
 
     // If called with args, immediately parse args and return.
     if len(os.args) > 1 {
+        // Maybe split by semicolon to run several commands? Might conflict with shell though.
         parse_command(os.args[1:])
         return
     }
     
     // Otherwise, REPL.
-    prev_ok := true
+    prev_result := Command_Result.Ok
     line: []string
-    for get_command(&cmdline_in, &line, prev_ok) == true {
-        prev_ok = parse_command(line)
+    for get_command(&cmdline_in, &line, prev_result) == true {
+        prev_result = parse_command(line)
+        if prev_result == .Quit {
+            break
+        }
         mem.free_all(context.temp_allocator)
     }
 
@@ -59,11 +69,11 @@ main :: proc() {
 
 
 // Allocates using temp allocator
-get_command :: proc(reader: ^bufio.Reader, out_args: ^[]string, prev_ok: bool) -> (next: bool) {
-    if prev_ok {
-        print("\u001b[32mCAL>\u001b[0m ")
+get_command :: proc(reader: ^bufio.Reader, out_args: ^[]string, prev_result: Command_Result) -> (next: bool) {
+    if prev_result == .Ok {
+        print_prompt("\u001b[32mCAL>\u001b[0m ")
     } else {
-        print("\u001b[31mCAL>\u001b[0m ")
+        print_prompt("\u001b[31mCAL>\u001b[0m ")
     }
 
     str, err := bufio.reader_read_string(reader, '\n', context.temp_allocator)
@@ -80,5 +90,3 @@ get_command :: proc(reader: ^bufio.Reader, out_args: ^[]string, prev_ok: bool) -
     return true
 }
 
-print   :: fmt.print
-println :: fmt.println

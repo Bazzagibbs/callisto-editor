@@ -1,22 +1,27 @@
 package callisto_editor
 
-import "core:fmt"
+import "core:log"
 import "core:strings"
 import "core:slice"
 
-cmd_help :: proc(args: []string) -> (ok: bool) {
+
+@(init, private)
+_register_help :: proc() {
+    register_command("help", cmd_help, usage_help)
+    register_alias("h", "help")
+}
 
 
+cmd_help :: proc(args: []string) -> Command_Result {
     if len(args) > 1 {
-        cmd_name := args[1]
-        cmd_record, cmd_ok := command_registry[cmd_name]
-        if !cmd_ok {
-            println("Command not found:", cmd_name)
-            return false
-        }
-        
-        println(cmd_record.usage_proc(args[1:]))
-        return true
+        name := args[1]
+        record, exists := get_command_record(args[1])
+        if !exists {
+            log.error("Command", args[1], "is not a valid command.")
+            return .Input_Error
+    }
+        log.info(record.usage_proc(args[1:]))
+        return .Ok
     }
 
     // print out all registered commands, sorted alphabetically
@@ -25,20 +30,16 @@ cmd_help :: proc(args: []string) -> (ok: bool) {
 
     slice.sort(command_names)
 
-    println("Available commands:")
+    log.info("Available commands:")
     for name in command_names {
-        println(" ", name)
+        log.info(" ", name)
     }
     
 
-    return true
+    return .Ok
 }
 
 usage_help :: proc(args: []string) -> string {
     return "help [command] [..args]"
 }
 
-@(init, private)
-_register_help :: proc() {
-    register_command("help", cmd_help, usage_help)
-}
