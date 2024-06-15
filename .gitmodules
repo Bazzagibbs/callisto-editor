@@ -4,6 +4,6 @@
 [submodule "importer/glslang"]
 	path = importer/glslang
 	url = git@github.com:Bazzas-Forks/odin-glslang.git
-[submodule "shader/spv-reflect"]
+[submodule "importer/spv-reflect"]
 	path = importer/spv-reflect
 	url = git@github.com:Bazzas-Forks/odin-spv-reflect.git
