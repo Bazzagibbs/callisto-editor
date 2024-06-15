@@ -2,10 +2,10 @@
 	path = callisto
     url = git@github.com:Bazzagibbs/callisto.git
 [submodule "importer/glslang"]
-	path = shader/glslang
+	path = importer/glslang
 	url = git@github.com:Bazzagibbs/odin-glslang.git
 [submodule "shader/spv-reflect"]
-	path = shader/spv-reflect
+	path = importer/spv-reflect
 	url = git@github.com:Bazzas-Forks/odin-spv-reflect.git
 [submodule "shader/glsl-lang"]
 	path = shader/glsl-lang

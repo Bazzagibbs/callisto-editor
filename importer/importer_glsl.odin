@@ -2,14 +2,14 @@ package callisto_importer
 
 import "core:log"
 import "core:c"
-import "core:runtime"
+import "base:runtime"
 
 import glsl "glslang"
 import "../callisto"
 
 @(init, private)
 _register_shader :: proc() {
-    register_file_handler("shader", importer_shader, usage_shader, short_desc_shader)
+    register_file_handler("glsl", importer_shader, usage_shader, short_desc_shader)
 }
 
 
@@ -23,7 +23,7 @@ usage_shader :: proc(args: []string) -> string {
 }
 
 short_desc_shader :: proc() -> string {
-    return "Compile GLSL shaders to SPIRV"
+    return "Compile GLSL shaders to SPIRV and Odin interface"
 }
 
 

@@ -1,6 +1,7 @@
 package callisto_importer
-import "core:intrinsics"
 
+import "base:intrinsics"
+import "base:runtime"
 import "core:log"
 import "core:strings"
 import "core:strconv"
@@ -8,7 +9,6 @@ import "core:math"
 import "core:fmt"
 import "core:slice"
 import "core:mem"
-import "core:runtime"
 import "core:math/linalg"
 
 import "vendor:cgltf"
