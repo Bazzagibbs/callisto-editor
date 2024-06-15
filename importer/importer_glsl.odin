@@ -7,6 +7,8 @@ import "base:runtime"
 import glsl "glslang"
 import "../callisto"
 
+VULKAN_VERSION :: glsl.Target_Client_Version.VULKAN_1_3
+
 @(init, private)
 _register_shader :: proc() {
     register_file_handler("glsl", importer_shader, usage_shader, short_desc_shader)
@@ -47,7 +49,7 @@ shader_compile_vulkan :: proc(stage: glsl.Stage, source: cstring) -> (shader_dat
         language                          = .GLSL,
         stage                             = stage,
         client                            = .VULKAN,
-        client_version                    = .VULKAN_1_3,
+        client_version                    = VULKAN_VERSION,
         target_language                   = .SPV,
         target_language_version           = .SPV_1_6,
         code                              = source,
@@ -59,9 +61,9 @@ shader_compile_vulkan :: proc(stage: glsl.Stage, source: cstring) -> (shader_dat
         resource                          = glsl.default_resource(),
         /* include callbacks */
         callbacks = {
-            include_system      = include_resolver_system,
-            include_local       = include_resolver_local,
-            free_include_result = include_resolver_free_result,
+            include_system      = shader_include_resolver_system,
+            include_local       = shader_include_resolver_local,
+            free_include_result = shader_include_resolver_free_result,
         },
         callbacks_ctx = &callback_ctx,
     }
@@ -123,17 +125,19 @@ shader_data_delete :: proc(shader_data: Shader_Data) {
     delete(shader_data.spirv)
 }
 
-include_resolver_system :: proc "c" (ctx: rawptr, header_name: cstring, includer_name: cstring, include_depth: c.size_t) -> ^glsl.Include_Result {
+shader_include_resolver_system :: proc "c" (ctx: rawptr, header_name: cstring, includer_name: cstring, include_depth: c.size_t) -> ^glsl.Include_Result {
     context = (^runtime.Context)(ctx)^
+    log.error("Shader #include <SYSTEM> not implemented: this should include from Callisto's built-in shader snippets")
     unimplemented()
 }
 
-include_resolver_local :: proc "c" (ctx: rawptr, header_name: cstring, includer_name: cstring, include_depth: c.size_t) -> ^glsl.Include_Result {
+shader_include_resolver_local :: proc "c" (ctx: rawptr, header_name: cstring, includer_name: cstring, include_depth: c.size_t) -> ^glsl.Include_Result {
     context = (^runtime.Context)(ctx)^
+    log.error("Shader #include \"LOCAL\" not implemented: this should include relative to the project directory")
     unimplemented()
 }
 
-include_resolver_free_result :: proc "c" (ctx: rawptr, include_res: ^glsl.Include_Result) -> c.int {
+shader_include_resolver_free_result :: proc "c" (ctx: rawptr, include_res: ^glsl.Include_Result) -> c.int {
     context = (^runtime.Context)(ctx)^
     unimplemented()
 }
