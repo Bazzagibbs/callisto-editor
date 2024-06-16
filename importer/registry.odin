@@ -20,7 +20,7 @@ Option_Pair :: struct {
     val : string,
 }
 
-Importer_Proc             :: #type proc(options: []Option_Pair, input_file: string, output_path: string) -> Command_Result 
+Importer_Proc             :: #type proc(options: []Option_Pair, input_files: []string, output_path: string) -> Command_Result 
 Importer_Usage_Proc       :: #type proc(args: []string) -> string
 Importer_Short_Desc_Proc  :: #type proc() -> string
 

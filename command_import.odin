@@ -20,38 +20,62 @@ _register_import :: proc() {
 }
 
 
-// `file_type`         The file type to import.
-// `input_file_path`   The source file to be imported.
-// `output_directory`  The base directory to store the resulting Galileo asset files.
-Import_Args :: struct {
-    file_type:          Import_File_Type,
-    input_file_path:    string,
-    output_directory:   string,
-}
-
-Import_File_Type :: enum {
-    gltf,
-}
-
-
-// TODO: support this command structure. Do reflection on the args struct to get docs, etc.
-// cmd_import :: proc(args: ^Import_Args) -> (res: Result)
 cmd_import :: proc(args: []string) -> Command_Result {
+    log.info("args:", args)
+
     if len(args) < 4 {
+        log.info(usage_import(args)) // This will print importer-specific usage if available
+        return .Input_Error
+    }
+
+    handler, exists := importer.file_handler_registry[args[1]]
+    
+    if !exists {
         log.info(usage_import(args))
         return .Input_Error
     }
-    
-    switch args[1] {
-        case "gltf":
-            return import_gltf(args[2], args[3])
-        case: 
-            log.info(usage_import(args))
-            return .Input_Error
+   
+
+
+    // Parse options
+    // Parse input files
+    // Parse output directory
+
+    options := make([dynamic]importer.Option_Pair)
+    paths := make([dynamic]string)
+    defer delete(options)
+    defer delete(paths)
+
+    for arg in args[2:] {
+        if strings.has_prefix(arg, "--") { // Arg is option
+            split := strings.split(arg[2:], "=")
+            
+            option := importer.Option_Pair {
+                key = split[0]
+            }
+            if len(split) > 1 {
+                option.val = split[1]
+            }
+
+            delete(split)
+
+            append(&options, option)
+        }
+        else { // Arg is path
+            append(&paths, arg)
+        }
     }
 
-    return .Ok
+    n_paths := len(paths)
+    if n_paths < 2 {
+        log.info(usage_import(args))
+        return .Input_Error
+    }
+
+    // Output dir is last path in array
+    return handler.import_file(options[:], paths[:n_paths-1], paths[n_paths-1])
 }
+
 
 usage_import :: proc(args: []string) -> string {
     b: strings.Builder
@@ -74,7 +98,7 @@ If the output directory is not empty, any existing assets will be overwritten
 but their UUIDs will be kept.
 
 Usage: 
-    import <file_type> [options] <input_files...> <output_directory>
+    import <file_type> [options] <..input_files> <output_directory>
 
 Arguments:
     file_type         The type of file to import. Supported file types:`)
@@ -89,62 +113,4 @@ fmt.sbprintln(&b,`
 
     return strings.to_string(b)
 }
-
-
-import_gltf :: proc(in_file_path, out_dir: string) -> Command_Result {
-    // TODO: Make sure in_file and out_dir are valid
-    
-    meshes, materials, textures, models, constructs, ok_import := importer.import_gltf(in_file_path)
-    defer {
-        for _, i in meshes {
-            mesh := meshes[i]
-            asset.delete_mesh(&mesh)
-        }
-        delete(meshes)
-    }
-    // defer { delete all imported }
-    
-    unique_file_names := make(map[string]int) // Only store strings owned by assets, not created by sb
-    defer delete(unique_file_names)
-    
-    file_name := strings.builder_make()
-  
-    for _, i in meshes {
-        mesh := &meshes[i]
-       
-        strings.builder_reset(&file_name)
-
-        count := unique_file_names[mesh.name]
-        if count == 0 {
-            fmt.sbprint(&file_name, mesh.name)
-        }
-        else {
-            fmt.sbprintf(&file_name, "%s.%3d", mesh.name, unique_file_names[mesh.name]) // mesh.001
-            mesh.name = strings.to_string(file_name)
-        }
-        unique_file_names[mesh.name] += 1
-
-        // TODO: check if file with same name exists from before we started writing. If so, copy and reuse its UUID.
-        out_file, mesh_uuid, ok_open := file_overwrite_or_new(out_dir, mesh.name)
-
-        mesh_data := asset.serialize_mesh(mesh)
-        defer delete(mesh_data)
-
-        // Create file header
-        
-        mesh_hash := xxhash.XXH3_64_default(mesh_data)
-        header := importer.default_galileo_header(mesh_uuid, .mesh, mesh_hash)
-
-        _, err := os.write(out_file, mem.byte_slice(&header, size_of(asset.Galileo_Header)))
-        _, err  = os.write(out_file, mesh_data)
-        if err != os.ERROR_NONE {
-            log.error("Error writing asset file:", err)
-        }
-    }
-
-    strings.builder_destroy(&file_name)
-
-    return .Ok
-}
-
 

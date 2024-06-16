@@ -15,7 +15,7 @@ _register_shader :: proc() {
 }
 
 
-importer_shader :: proc(options: []Option_Pair, file_name: string, output_dir: string) -> Command_Result {
+importer_shader :: proc(options: []Option_Pair, input_files: []string, output_dir: string) -> Command_Result {
     log.error("Not implemented")
     return .Execution_Error
 }
@@ -25,7 +25,7 @@ usage_shader :: proc(args: []string) -> string {
 }
 
 short_desc_shader :: proc() -> string {
-    return "Compile GLSL shaders to SPIRV and Odin interface"
+    return "Compile GLSL shaders to SPIRV with an Odin interface"
 }
 
 

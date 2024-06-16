@@ -1,8 +1,7 @@
-package callisto_editor
+package callisto_editor_common
 
-import "callisto/common"
-import "callisto/asset"
-import "importer"
+import "../callisto/common"
+import "../callisto/asset"
 
 import "core:os"
 import "core:path/filepath"

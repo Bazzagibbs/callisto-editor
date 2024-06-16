@@ -10,12 +10,88 @@ import "core:fmt"
 import "core:slice"
 import "core:mem"
 import "core:math/linalg"
+import "core:hash/xxhash"
+import "core:os"
 
 import "vendor:cgltf"
+import "../common"
 import cc "../callisto/common"
 import "../callisto/asset"
 
-import_gltf :: proc(model_path: string) -> (
+@(init, private)
+_register_gltf :: proc() {
+    register_file_handler("gltf", importer_gltf, usage_gltf, short_desc_gltf);
+}
+
+
+importer_gltf :: proc(options: []Option_Pair, input_files: []string, output_dir: string) -> Command_Result {
+    for input_file in input_files {
+        meshes, materials, textures, models, constructs, ok_import := import_gltf_file(input_file)
+        defer {
+            for _, i in meshes {
+                mesh := meshes[i]
+                asset.delete_mesh(&mesh)
+            }
+            delete(meshes)
+        }
+        
+        unique_file_names := make(map[string]int) // Only store strings owned by assets, not created by sb
+        defer delete(unique_file_names)
+        
+        file_name := strings.builder_make()
+      
+        for _, i in meshes {
+            mesh := &meshes[i]
+           
+            strings.builder_reset(&file_name)
+
+            count := unique_file_names[mesh.name]
+            if count == 0 {
+                fmt.sbprint(&file_name, mesh.name)
+            }
+            else {
+                fmt.sbprintf(&file_name, "%s.%3d", mesh.name, unique_file_names[mesh.name]) // mesh.001
+                mesh.name = strings.to_string(file_name)
+            }
+            unique_file_names[mesh.name] += 1
+
+            // TODO: check if file with same name exists from before we started writing. If so, copy and reuse its UUID.
+            out_file, mesh_uuid, ok_open := common.file_overwrite_or_new(output_dir, mesh.name)
+
+            mesh_data := asset.serialize_mesh(mesh)
+            defer delete(mesh_data)
+
+            // Create file header
+            
+            mesh_hash := xxhash.XXH3_64_default(mesh_data)
+            header := default_galileo_header(mesh_uuid, .mesh, mesh_hash)
+
+            _, err := os.write(out_file, mem.byte_slice(&header, size_of(asset.Galileo_Header)))
+            _, err  = os.write(out_file, mesh_data)
+            if err != os.ERROR_NONE {
+                log.error("Error writing asset file:", err)
+            }
+        }
+
+        strings.builder_destroy(&file_name)
+
+
+    }
+
+    return .Ok
+}
+
+
+usage_gltf :: proc(args: []string) -> string {
+    return "import gltf <..input_files> <output_directory>"
+}
+
+short_desc_gltf :: proc() -> string {
+    return "Import glTF 3D models/scenes"
+}
+
+
+import_gltf_file :: proc(model_path: string) -> (
     meshes:     []asset.Mesh,
     materials:  []asset.Material, 
     textures:   []asset.Texture, 
