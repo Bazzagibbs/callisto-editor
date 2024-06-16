@@ -31,14 +31,14 @@ file_overwrite_or_new :: proc(base_dir: string, file_name: string) -> (file: os.
     old_file, file_err := os.open(file_path)
     if file_err == os.ERROR_NONE {
         // file exists. If valid asset, use its existing uuid.
-        defer os.close(old_file)
-        
-        file_reader := io.to_reader(os.stream_from_handle(file))
+        file_reader := io.to_reader(os.stream_from_handle(old_file))
 
         gali_header, meta_ok := asset.read_header(file_reader)
         if meta_ok {
             uuid = gali_header.uuid
         }
+        
+        os.close(old_file)
     }
 
     new_file, err := os.open(file_path, os.O_WRONLY | os.O_CREATE | os.O_TRUNC)

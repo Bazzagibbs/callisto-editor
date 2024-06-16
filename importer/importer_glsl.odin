@@ -1,8 +1,9 @@
 package callisto_importer
 
+import "base:runtime"
 import "core:log"
 import "core:c"
-import "base:runtime"
+import "core:os/os2"
 
 import glsl "glslang"
 import "../callisto"
@@ -16,16 +17,40 @@ _register_shader :: proc() {
 
 
 importer_shader :: proc(options: []Option_Pair, input_files: []string, output_dir: string) -> Command_Result {
-    log.error("Not implemented")
-    return .Execution_Error
+    res := Command_Result.Ok
+
+    for input_file in input_files {
+        file_data, err := os2.read_entire_file_from_path(input_file)
+        if (err != nil) {
+            log.error("Error opening file:", input_file)
+            res = .File_System_Error
+            continue
+        }
+
+        stage := shader_parse_options_stage(options)
+        
+        shader_data := shader_compile(stage, file_data)
+        // TODO
+        file_overwrite_or_new
+        delete(file_data)
+    }
+
+    return res
 }
 
 usage_shader :: proc(args: []string) -> string {
-    return "I don't know yet :)"
+    return `import glsl [--option=value] <..input_files> <output_dir>
+
+options:
+    --stage=fragment    Which stage is this program? Available values:
+                            vertex
+                            fragment (default)
+                            compute
+`
 }
 
 short_desc_shader :: proc() -> string {
-    return "Compile GLSL shaders to SPIRV with an Odin interface"
+    return "Compile GLSL shaders to SPIRV"
 }
 
 

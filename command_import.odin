@@ -21,8 +21,6 @@ _register_import :: proc() {
 
 
 cmd_import :: proc(args: []string) -> Command_Result {
-    log.info("args:", args)
-
     if len(args) < 4 {
         log.info(usage_import(args)) // This will print importer-specific usage if available
         return .Input_Error
