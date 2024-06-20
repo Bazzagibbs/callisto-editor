@@ -11,7 +11,7 @@ import "core:slice"
 import "core:mem"
 import "core:math/linalg"
 import "core:hash/xxhash"
-import "core:os"
+import "core:os/os2"
 
 import "vendor:cgltf"
 import "../common"
@@ -66,9 +66,9 @@ importer_gltf :: proc(options: []Option_Pair, input_files: []string, output_dir:
             mesh_hash := xxhash.XXH3_64_default(mesh_data)
             header := default_galileo_header(mesh_uuid, .mesh, mesh_hash)
 
-            _, err := os.write(out_file, mem.byte_slice(&header, size_of(asset.Galileo_Header)))
-            _, err  = os.write(out_file, mesh_data)
-            if err != os.ERROR_NONE {
+            _, err := os2.write(out_file, mem.byte_slice(&header, size_of(asset.Galileo_Header)))
+            _, err  = os2.write(out_file, mesh_data)
+            if err != {} {
                 log.error("Error writing asset file:", err)
             }
         }

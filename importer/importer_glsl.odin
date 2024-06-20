@@ -9,6 +9,7 @@ import "core:strings"
 import "core:slice"
 import "core:path/filepath"
 import "core:mem"
+import "core:bytes"
 
 import glsl "glslang"
 import "../common"
@@ -230,16 +231,10 @@ shader_compile_vulkan :: proc(stage: glsl.Stage, source: cstring) -> (shader_dat
 
 // **Allocates using the provided allocator**
 shader_data_to_galileo_bytes :: proc(shader_data: ^Shader_Data, allocator := context.allocator) -> []byte {
-    length := len(shader_data.spirv) // + other elements later
-    bytes := make([]byte, length)
+    return bytes.join({
+        slice.bytes_from_ptr(raw_data(shader_data.spirv), len(shader_data.spirv) * 4), // int slice to byte slice
+    }, nil)
     
-    cursor := 0
-
-    // SPIR-V
-    mem.copy(&bytes[cursor], raw_data(shader_data.spirv), len(shader_data.spirv))
-    cursor += len(shader_data.spirv)
-
-    return bytes
 }
 
 
