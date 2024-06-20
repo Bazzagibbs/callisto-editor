@@ -1,0 +1,5 @@
+package callisto_editor_common
+
+GALI_SPEC_VERSION_MAJOR :: 0
+GALI_SPEC_VERSION_MINOR :: 0
+GALI_SPEC_VERSION_PATCH :: 1
