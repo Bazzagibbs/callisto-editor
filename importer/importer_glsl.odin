@@ -4,7 +4,7 @@ import "base:runtime"
 import "core:log"
 import "core:c"
 import "core:os"
-import "core:os/os2"
+// import "core:os/os2"
 import "core:strings"
 import "core:slice"
 import "core:path/filepath"
@@ -17,6 +17,10 @@ import "../callisto"
 
 VULKAN_VERSION :: glsl.Target_Client_Version.VULKAN_1_3
 
+GLSL_EXTENSION_DIRECTIVE :: `
+#extension GL_ARB_shading_language_include : require
+`
+
 @(init, private)
 _register_shader :: proc() {
     register_file_handler("glsl", importer_shader, usage_shader, short_desc_shader)
@@ -25,14 +29,17 @@ _register_shader :: proc() {
 
 importer_shader :: proc(options: []Option_Pair, input_files: []string, output_dir: string) -> Command_Result {
     res := Command_Result.Ok
-
+    
     stage, is_stage_overridden := shader_parse_options_stage(options)
+    
+    failed_files := make([dynamic]string)
+    defer delete(failed_files)
 
     for input_file in input_files {
-        file_data, err := os2.read_entire_file_from_path(input_file, context.allocator)
-
-        if (err != nil) {
+        file_data, ok_read := shader_read_file_and_insert_extension(input_file)
+        if (!ok_read) {
             log.error("Error opening file:", input_file)
+            append(&failed_files, filepath.base(input_file))
             res = .File_System_Error
             continue
         }
@@ -55,25 +62,37 @@ importer_shader :: proc(options: []Option_Pair, input_files: []string, output_di
         
         shader_data, compile_res := shader_compile(stage, file_src)
         if compile_res != .Ok {
-            log.error("Shader compilation failed:", compile_res)
+            log.error("Shader compilation failed:", compile_res, "for file", filepath.base(input_file))
+            append(&failed_files, filepath.base(input_file))
             res = .Execution_Error
             continue
         }
         
         // TODO: get reflection data
-
         defer shader_data_delete(shader_data)
-
 
         // Write SPIRV to asset file
         out_file, uuid, ok := common.file_overwrite_or_new(output_dir, filepath.base(input_file))
         if !ok {
             log.error("Error opening or creating the output file for", filepath.base(input_file))
+            append(&failed_files, filepath.base(input_file))
             res = .File_System_Error
             continue
         }
-        common.file_package_galileo_asset(out_file, .shader, uuid, shader_data_to_galileo_bytes(&shader_data))
 
+        gali_bytes := shader_data_to_galileo_bytes(&shader_data)
+        defer delete(gali_bytes)
+        
+        ok = common.file_package_galileo_asset(out_file, .shader, uuid, gali_bytes)
+        if !ok {
+            append(&failed_files, filepath.base(input_file))
+        }
+
+    }
+
+
+    for file in failed_files {
+        log.errorf("%v%v failed to compile%v", common.CONSOLE_COLOR_RED, file, common.CONSOLE_COLOR_RESET);
     }
 
     return res
@@ -152,6 +171,15 @@ shader_compile :: proc(stage: glsl.Stage, source: cstring) -> (shader_data: Shad
 // Allocates: when res == .Ok, shader_data must be deleted with `shader_data_delete()`
 shader_compile_vulkan :: proc(stage: glsl.Stage, source: cstring) -> (shader_data: Shader_Data, res: callisto.Result) {
     callback_ctx := context
+    
+    ok_glsl := glsl.initialize_process()
+    if !ok_glsl {
+        log.error("Error initializing glslang")
+        return {}, .Initialization_Failed
+    }
+    
+    defer glsl.finalize_process()
+
 
     input := glsl.Input {
         language                          = .GLSL,
@@ -214,9 +242,8 @@ shader_compile_vulkan :: proc(stage: glsl.Stage, source: cstring) -> (shader_dat
 
     size := glsl.program_SPIRV_get_size(program)
     
-    data := Shader_Data {
-        spirv = make([]u32, size),
-    }
+    data := shader_data_make(size)
+    defer if !ok do shader_data_delete(data)
 
     glsl.program_SPIRV_get(program, raw_data(data.spirv))
 
@@ -225,7 +252,7 @@ shader_compile_vulkan :: proc(stage: glsl.Stage, source: cstring) -> (shader_dat
         log.info(messages)
     }
 
-    return {}, .Ok
+    return data, .Ok
 }
 
 
@@ -237,6 +264,11 @@ shader_data_to_galileo_bytes :: proc(shader_data: ^Shader_Data, allocator := con
     
 }
 
+shader_data_make :: proc(size: uint) -> Shader_Data {
+    return Shader_Data {
+        spirv = make([]u32, size),
+    }
+}
 
 shader_data_delete :: proc(shader_data: Shader_Data) {
     delete(shader_data.spirv)
@@ -257,4 +289,33 @@ shader_include_resolver_local :: proc "c" (ctx: rawptr, header_name: cstring, in
 shader_include_resolver_free_result :: proc "c" (ctx: rawptr, include_res: ^glsl.Include_Result) -> c.int {
     context = (^runtime.Context)(ctx)^
     unimplemented()
+}
+
+
+// **Allocates using the provided allocator**
+shader_read_file_and_insert_extension :: proc (file: string, allocator := context.allocator) -> (src: cstring, ok: bool) {
+    file_data, ok_read := os.read_entire_file_from_filename(file, allocator)
+    if !ok_read {
+        return {}, false
+    }
+    defer delete(file_data)
+
+    it    := string(file_data)
+    b, err_builder := strings.builder_make(allocator)
+    if err_builder != .None {
+        return {}, false
+    }
+
+    // #version x.x
+    version_line, _ := strings.split_lines_iterator(&it)
+    strings.write_string(&b, version_line)
+
+    // #extension GL_ARB_shader_language_include
+    strings.write_string(&b, GLSL_EXTENSION_DIRECTIVE)
+
+    // Write the rest of the source
+    strings.write_string(&b, it)
+
+    strings.write_byte(&b, 0);
+    return strings.unsafe_string_to_cstring(strings.to_string(b)), true
 }

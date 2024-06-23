@@ -6,3 +6,7 @@
 ols.json
 callisto-editor.exe
 callisto-editor.pdb
+
+# Debugger configuration files
+*.rdbg
+*.raddbgi
