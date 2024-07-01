@@ -1,11 +1,15 @@
+# Build outputs
+/out/
+callisto-editor.exe
+callisto-editor.pdb
+
+# Editor-specific caches
 /.vs/
 /.idea/
 *.sublime-*
-/out/
 
+# Odin Language Server configuration file
 ols.json
-callisto-editor.exe
-callisto-editor.pdb
 
 # Debugger configuration files
 *.rdbg

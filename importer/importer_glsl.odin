@@ -276,13 +276,18 @@ shader_data_delete :: proc(shader_data: Shader_Data) {
 
 shader_include_resolver_system :: proc "c" (ctx: rawptr, header_name: cstring, includer_name: cstring, include_depth: c.size_t) -> ^glsl.Include_Result {
     context = (^runtime.Context)(ctx)^
-    log.error("Shader #include <SYSTEM> not implemented: this should include from Callisto's built-in shader snippets")
+    log.error("Shader #include <SYSTEM> not implemented: this should include from the editor's built-in shader snippets")
+
+    // TODO: get executable path from os.args[0], search data/glsl-include for <include_header> (using filepath.join()?)
     unimplemented()
 }
 
 shader_include_resolver_local :: proc "c" (ctx: rawptr, header_name: cstring, includer_name: cstring, include_depth: c.size_t) -> ^glsl.Include_Result {
     context = (^runtime.Context)(ctx)^
     log.error(`"Shader #include "LOCAL" not implemented: this should include relative to the project directory`)
+
+    // TODO: get project path (stored by editor runtime somehow?)
+    //      OR search relative to the provided input file
     unimplemented()
 }
 
